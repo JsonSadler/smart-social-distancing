@@ -16,11 +16,13 @@ logger = logging.getLogger(__name__)
 
 class Distancing:
 
+    #static class variable
+    running_video = False
+
     def __init__(self, config):
         self.config = config
         self.detector = None
         self.device = self.config.get_section_dict('Detector')['Device']
-        self.running_video = False
         self.tracker = CentroidTracker(
             max_disappeared=int(self.config.get_section_dict("PostProcessor")["MaxTrackFrame"]))
         self.logger = Logger(self.config)
@@ -136,7 +138,7 @@ class Distancing:
             logger.error(f'failed to load video {video_uri}')
             return
 
-        self.running_video = True
+        running_video = True
 
         # enable logging gstreamer Errors (https://stackoverflow.com/questions/3298934/how-do-i-view-gstreamer-debug-output)
         os.environ['GST_DEBUG'] = "*:1"
@@ -151,7 +153,7 @@ class Distancing:
         dist_threshold = float(self.config.get_section_dict("PostProcessor")["DistThreshold"])
         class_id = int(self.config.get_section_dict('Detector')['ClassID'])
         frame_num = 0
-        while input_cap.isOpened() and self.running_video:
+        while input_cap.isOpened() and running_video:
             _, cv_image = input_cap.read()
             birds_eye_window = np.zeros(self.birds_eye_resolution[::-1] + (3,), dtype="uint8")
             if np.shape(cv_image) != ():
@@ -207,7 +209,7 @@ class Distancing:
                 out.write(cv_image)
                 out_birdseye.write(birds_eye_window)
                 frame_num += 1
-                if frame_num % 1000 == 1:
+                if frame_num % 100 == 1:
                     logger.info(f'processed frame {frame_num} for {video_uri}')
             else:
                 continue
@@ -215,10 +217,10 @@ class Distancing:
         input_cap.release()
         out.release()
         out_birdseye.release()
-        self.running_video = False
+        running_video = False
 
     def stop_process_video(self):
-        self.running_video = False
+        running_video = False
 
     def calculate_distancing(self, objects_list):
         """
